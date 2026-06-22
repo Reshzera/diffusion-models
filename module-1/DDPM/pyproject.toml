@@ -1,0 +1,22 @@
+[project]
+name = "mlx-ddpm"
+version = "0.1.0"
+description = "A small educational DDPM implementation in MLX based on Ho et al. 2020."
+readme = "README.md"
+authors = [
+    { name = "Reshzera", email = "reoshiro13@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "mlx>=0.31.2",
+    "numpy>=2.5.0",
+    "pillow>=12.2.0",
+    "tqdm>=4.68.3",
+]
+
+[project.scripts]
+mlx-ddpm = "mlx_ddpm.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"
