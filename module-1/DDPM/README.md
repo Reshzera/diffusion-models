@@ -88,6 +88,7 @@ uv run mlx-ddpm sample \
   --checkpoint runs/ddpm/checkpoints/ddpm_step_001000.safetensors \
   --image-size 64 \
   --channels 3 \
+  --timesteps 500 \
   --output runs/ddpm/test_samples.png
 ```
 
@@ -100,6 +101,7 @@ uv run mlx-ddpm sample \
   --checkpoint runs/ddpm/ddpm.safetensors \
   --image-size 32 \
   --channels 3 \
+  --timesteps 1000 \
   --output runs/ddpm/samples.png
 ```
 
