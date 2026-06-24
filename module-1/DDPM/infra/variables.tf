@@ -39,7 +39,7 @@ variable "repo_dir" {
 variable "train_command" {
   description = "Training command executed inside the cloned repository."
   type        = string
-  default     = "uv run python train.py"
+  default     = "uv run cuda-ddpm train --dataset oxford-flowers --data-dir data/oxford-flowers --image-size 64 --channels 3 --base-channels 64 --batch-size 16 --timesteps 500 --save-every 1000 --steps 10000 --device cuda"
 }
 
 variable "root_volume_size" {

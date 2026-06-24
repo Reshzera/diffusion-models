@@ -1,6 +1,9 @@
-# MLX DDPM
+# DDPM
 
-Educational Denoising Diffusion Probabilistic Model implementation in [MLX](https://ml-explore.github.io/mlx/) using `uv`.
+Educational Denoising Diffusion Probabilistic Model implementations using `uv`:
+
+- `src/mlx_ddpm`: [MLX](https://ml-explore.github.io/mlx/) implementation for Apple silicon.
+- `src/cuda_ddpm`: PyTorch/CUDA implementation for NVIDIA GPUs such as AWS H100/P5.
 
 Reference paper: [Denoising Diffusion Probabilistic Models](https://arxiv.org/abs/2006.11239), Ho, Jain, Abbeel, 2020.
 
@@ -10,7 +13,8 @@ Reference paper: [Denoising Diffusion Probabilistic Models](https://arxiv.org/ab
 - Noise-prediction objective `E[||epsilon - epsilon_theta(x_t, t)||^2]` from the simplified DDPM loss.
 - Reverse denoising sampler using the learned mean parameterization.
 - Small U-Net epsilon predictor with sinusoidal timestep embeddings.
-- NHWC image tensors because MLX convolutions use channels-last layout.
+- MLX uses NHWC image tensors because MLX convolutions use channels-last layout.
+- CUDA/PyTorch uses NCHW image tensors because PyTorch convolutions use channels-first layout.
 
 This is intentionally compact for Module 1 study work, not a production image generator.
 
@@ -24,7 +28,10 @@ uv sync
 
 ```bash
 uv run mlx-ddpm smoke
+uv run cuda-ddpm smoke --device auto
 ```
+
+Use `mlx-ddpm` on Apple silicon. Use `cuda-ddpm` on NVIDIA GPU machines.
 
 ## Train
 
@@ -41,7 +48,21 @@ uv run mlx-ddpm train \
   --output-dir runs/ddpm
 ```
 
-The final checkpoint is saved to `runs/ddpm/ddpm.safetensors`. Intermediate checkpoints are saved to `runs/ddpm/checkpoints/ddpm_step_*.safetensors` when `--save-every` is non-zero. Intermediate samples are saved as `sample_*.png` when `--sample-every` is non-zero.
+CUDA/H100 equivalent:
+
+```bash
+uv run cuda-ddpm train \
+  --data-dir /path/to/images \
+  --image-size 32 \
+  --channels 3 \
+  --batch-size 32 \
+  --steps 10000 \
+  --save-every 1000 \
+  --output-dir runs/cuda-ddpm \
+  --device cuda
+```
+
+The MLX final checkpoint is saved to `runs/ddpm/ddpm.safetensors`. The CUDA final checkpoint is saved to `runs/cuda-ddpm/ddpm.pt`. Intermediate checkpoints are saved under `checkpoints/` when `--save-every` is non-zero. Intermediate samples are saved as `sample_*.png` when `--sample-every` is non-zero.
 
 ## CIFAR-10
 
@@ -59,6 +80,8 @@ uv run mlx-ddpm train \
   --save-every 1000 \
   --output-dir runs/cifar10-ddpm
 ```
+
+For CUDA/H100, use the same arguments with `cuda-ddpm` and add `--device cuda`.
 
 By default this saves the archive and converted images under `data/cifar-10`. Override that with `--data-dir` if needed.
 
@@ -79,6 +102,8 @@ uv run mlx-ddpm train \
   --steps 10000
 ```
 
+For CUDA/H100, use the same arguments with `cuda-ddpm` and add `--device cuda`.
+
 The dataset archive is saved as `data/oxford-flowers/102flowers.tgz` and images are extracted to `data/oxford-flowers/jpg`.
 
 Generate from a saved checkpoint:
@@ -92,6 +117,18 @@ uv run mlx-ddpm sample \
   --output runs/ddpm/test_samples.png
 ```
 
+CUDA checkpoints use `.pt` files:
+
+```bash
+uv run cuda-ddpm sample \
+  --checkpoint runs/cuda-ddpm/checkpoints/ddpm_step_001000.pt \
+  --image-size 64 \
+  --channels 3 \
+  --timesteps 500 \
+  --output runs/cuda-ddpm/test_samples.png \
+  --device cuda
+```
+
 ## Sample
 
 Use the same model-shape arguments used during training.
@@ -103,6 +140,18 @@ uv run mlx-ddpm sample \
   --channels 3 \
   --timesteps 1000 \
   --output runs/ddpm/samples.png
+```
+
+CUDA equivalent:
+
+```bash
+uv run cuda-ddpm sample \
+  --checkpoint runs/cuda-ddpm/ddpm.pt \
+  --image-size 32 \
+  --channels 3 \
+  --timesteps 1000 \
+  --output runs/cuda-ddpm/samples.png \
+  --device cuda
 ```
 
 ## Useful Smaller Experiment
@@ -119,13 +168,15 @@ uv run mlx-ddpm train \
   --steps 1000
 ```
 
+For CUDA quick iteration, replace `mlx-ddpm` with `cuda-ddpm` and add `--device auto` or `--device cuda`.
+
 ## AWS H100 Training Automation
 
 This repository includes Terraform and Bash automation for launching an AWS EC2 GPU instance, cloning this repo, installing dependencies with `uv`, running a configurable training command, streaming logs to your local terminal, and stopping or destroying the infrastructure safely.
 
 The default instance type is `p5.4xlarge` because the workflow is intended for H100/P5 usage. Availability varies by region and AWS account. If AWS reports that `p5.4xlarge` is unavailable, change `INSTANCE_TYPE` in `.env` to a P5 instance type available in your region and account.
 
-Important: this project currently uses MLX, which is designed for Apple silicon. The AWS automation is generic Python/`uv` infrastructure for H100 training, but your `TRAIN_COMMAND` and dependencies must be compatible with NVIDIA/CUDA if you want to use the H100 GPU. For this MLX project, use an NVIDIA-compatible training command or branch before expecting CUDA acceleration.
+Use `cuda-ddpm` for AWS H100 training. The MLX command remains available for local Apple silicon experiments, but it will not use NVIDIA CUDA acceleration.
 
 ### Prerequisites
 
@@ -155,20 +206,18 @@ SSH_PRIVATE_KEY_PATH=~/.ssh/my-aws-key.pem
 ALLOWED_SSH_CIDR=
 REPO_URL=https://github.com/USER/REPO.git
 REPO_DIR=ddpm-training
-TRAIN_COMMAND="uv run python train.py"
+TRAIN_COMMAND="uv run cuda-ddpm train --dataset oxford-flowers --data-dir data/oxford-flowers --image-size 64 --channels 3 --base-channels 64 --batch-size 16 --timesteps 500 --save-every 1000 --steps 10000 --device cuda"
 ROOT_VOLUME_SIZE=200
 AUTO_STOP_AFTER_TRAINING=true
 ```
 
 Leave `ALLOWED_SSH_CIDR` empty to let `scripts/setup_aws.sh` detect your current public IP and use `<your-ip>/32` for SSH. Set it manually if your network blocks public IP detection or if you need a specific CIDR.
 
-For this repository, a local command might look like this after you adapt paths and arguments:
+For this repository, a H100 command might look like this after you adapt paths and arguments:
 
 ```bash
-TRAIN_COMMAND="uv run mlx-ddpm train --dataset oxford-flowers --data-dir data/oxford-flowers --image-size 64 --channels 3 --base-channels 64 --batch-size 16 --timesteps 500 --save-every 1000 --steps 10000"
+TRAIN_COMMAND="uv run cuda-ddpm train --dataset oxford-flowers --data-dir data/oxford-flowers --image-size 64 --channels 3 --base-channels 64 --batch-size 16 --timesteps 500 --save-every 1000 --steps 10000 --device cuda"
 ```
-
-Again, MLX itself is not a CUDA/PyTorch training stack. Use a CUDA-compatible command for actual H100 acceleration.
 
 ### Recommended Workflow
 
@@ -182,6 +231,7 @@ Optional commands:
 ```bash
 ./scripts/ssh_aws.sh
 ./scripts/tail_logs.sh
+./scripts/download_aws_runs.sh
 ./scripts/stop_aws.sh
 ./scripts/destroy_aws.sh
 ```
@@ -201,6 +251,8 @@ Use `--auto-stop` by default to reduce the chance of accidentally leaving an exp
 `scripts/train_aws.sh --use-tmux` runs the remote training command inside a `tmux` session named `ddpm_train` and attaches your terminal to it. Detach with `Ctrl-b` then `d`. If you want training to survive an SSH drop, prefer `./scripts/train_aws.sh --use-tmux --no-auto-stop`; otherwise the local auto-stop cleanup may stop the instance when the local SSH process exits.
 
 `scripts/tail_logs.sh` connects to the instance and runs `tail -f train.log` inside `REPO_DIR`, so you can follow logs without restarting training.
+
+`scripts/download_aws_runs.sh` downloads generated `.png` images from a remote run directory on the instance. It defaults to `runs/cuda-ddpm`; pass another directory like `runs/ddpm` if you trained with a different output path.
 
 `scripts/ssh_aws.sh` opens an interactive SSH session using Terraform outputs.
 
