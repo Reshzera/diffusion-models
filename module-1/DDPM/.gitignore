@@ -11,16 +11,9 @@ __pycache__/
 venv/
 env/
 
-# Local AWS/Terraform configuration
+# Local secrets/configuration
 .env
-*.tfvars
-*.tfvars.json
-infra/.terraform/
-infra/.terraform.lock.hcl
-infra/terraform.tfstate
-infra/terraform.tfstate.backup
-infra/crash.log
-infra/crash.*.log
+*.pem
 
 # Local datasets and generated training outputs
 data/
