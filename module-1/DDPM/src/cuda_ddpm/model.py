@@ -125,6 +125,11 @@ class DDPMUNet(nn.Module):
         h1 = self.down1(h0, time_emb)
         h2 = self.downsample1(h1)
         h2 = self.down2(h2, time_emb)
+        batch_size, channels, height, width = h2.shape
+        h2_tokens = h2.flatten(2).transpose(1, 2)
+        h2 = h2 + self.attention1(h2_tokens).transpose(1, 2).reshape(
+            batch_size, channels, height, width
+        )
 
         h = self.downsample2(h2)
         h = self.mid1(h, time_emb)
@@ -133,6 +138,11 @@ class DDPMUNet(nn.Module):
         h = self.upsample1(h)
         h = torch.cat([h, h2], dim=1)
         h = self.up1(h, time_emb)
+        batch_size, channels, height, width = h.shape
+        h_tokens = h.flatten(2).transpose(1, 2)
+        h = h + self.attention2(h_tokens).transpose(1, 2).reshape(
+            batch_size, channels, height, width
+        )
         h = self.upsample2(h)
         h = torch.cat([h, h1], dim=1)
         h = self.up2(h, time_emb)

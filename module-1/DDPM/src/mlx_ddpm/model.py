@@ -125,6 +125,9 @@ class DDPMUNet(nn.Module):
         h1 = self.down1(h0, time_emb)  # 32x32x64
         h2 = self.downsample1(h1)  # 16x16x128
         h2 = self.down2(h2, time_emb)  # 16x16x128
+        batch_size, height, width, channels = h2.shape
+        h2_tokens = h2.reshape(batch_size, height * width, channels)
+        h2 = h2 + self.attention1(h2_tokens).reshape(batch_size, height, width, channels)
 
         h = self.downsample2(h2)  # 8x8x256
         h = self.mid1(h, time_emb)  # 8x8x256
@@ -133,6 +136,9 @@ class DDPMUNet(nn.Module):
         h = self.upsample1(h)  # 16x16x128
         h = mx.concatenate([h, h2], axis=-1)  # 16x16x256
         h = self.up1(h, time_emb)  # 16x16x128
+        batch_size, height, width, channels = h.shape
+        h_tokens = h.reshape(batch_size, height * width, channels)
+        h = h + self.attention2(h_tokens).reshape(batch_size, height, width, channels)
         h = self.upsample2(h)  # 32x32x64
         h = mx.concatenate([h, h1], axis=-1)  # 32x32x128
         h = self.up2(h, time_emb)  # 32x32x64
