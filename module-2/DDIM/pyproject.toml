@@ -1,0 +1,24 @@
+[project]
+name = "mlx-ddim"
+version = "0.1.0"
+description = "Module 2 educational DDIM implementation with configurable samplers and noise schedules."
+readme = "README.md"
+authors = [
+    { name = "Reshzera", email = "reoshiro13@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "mlx>=0.31.2; sys_platform == 'darwin'",
+    "numpy>=2.3.0",
+    "pillow>=12.2.0",
+    "torch>=2.4.0",
+    "tqdm>=4.68.3",
+]
+
+[project.scripts]
+mlx-ddim = "mlx_ddim.cli:main"
+cuda-ddim = "cuda_ddim.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"
